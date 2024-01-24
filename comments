@@ -1,0 +1,46 @@
+# Class Explain Base:
+    # _init_query ? basically query dilam setar respect e retrieve and rerank
+    # _rank_docs  : init_query is internally calling this function
+    # get_candidates_ranker? topr many condidates I am choosing
+    # sample_doc_pair : eta important : 500C2 theke kibhabe sample korbo D_i and D_j
+    # build_matrix : matrix ta fill up kora ---- etao important         
+    # evaluate_fidelity : kendall tau evaluation ---- imp 
+
+# NOTES: different jinish not published erom optmization technique dewa kintu besh muskil
+
+# Class Explain run:
+    # init_explainer : eta not required I guess
+    # gen_candidates : API to call internal functions -> internal functions gulo lagbe
+    # explain_single : eta bhison **important** >> lekha ache single matrix but not clear though
+    #                : three different optimizers used  i. greedy, ii. lp,  iii. geno/geno_multi
+    #                  plus aro different optimizers use kora hoyeche.
+    # explain_by_query : only query terms no expansion terms (may be used for ablation)
+    # explain_by_gradients : important
+    # evaluate : kendall tau er oi pyaji ta
+    # ablation : pray similar e lagche; 
+    # single_doc_score : 
+    # compute_coverage : 
+    # correct_local_tau : 
+    # model_diff : not relevant I guess 
+    # evaluate_exp_by_perturb : not sure whether relevant or not
+    # evaluate_remove_wikipedia : not relevant I guess
+    # computation cost: not relevant I guess 
+
+
+# explainer :
+    # get_explainer return different types of simple explainer object
+    # _lm : language model explainer
+    # _saliency : position weighted value
+    # rerank : 
+    # multi_rank :
+
+sample doc pair function :
+topk_rank_random ->> eta added EXS e
+negligible rank difference hole je baad  ->> lijun ECIR 2023 e added 
+
+What all queries we can show for bias :
+
+TREC DL 2020 hard
+1. causes of stroke? 
+2. what is the daily life of thai people
+3. what causes heavy metal toxins in your body
