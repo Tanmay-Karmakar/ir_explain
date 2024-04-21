@@ -1,3 +1,20 @@
+from ast import Pass
+import math
+from itertools import combinations
+from math import isclose
+import pandas as pd
+
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
+from nltk.corpus import wordnet
+from nltk.wsd import lesk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk import wordnet, pos_tag
+from nltk.corpus import wordnet as wn
+from sklearn.feature_extraction.text import CountVectorizer
+
 def calculate_wup_similarity(tokens1, tokens2):
     # Calculate the maximum Wu-Palmer similarity between each pair of synsets
     max_similarity = 0.0
