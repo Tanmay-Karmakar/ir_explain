@@ -1,4 +1,4 @@
-class ir_axioms:
+class pairwise:
 
   class TFC1:
 
