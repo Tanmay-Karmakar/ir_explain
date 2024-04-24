@@ -1,5 +1,36 @@
 class pairwise:
 
+  def __init__(self, query, doc1, doc2, index_path):
+        self.query = query
+        self.doc1 = doc1
+        self.doc2 = doc2
+        self.index_path = index_path
+
+  def explain(self, axiom_classes):
+        for axiom_class in axiom_classes:
+            result = axiom_class.compare(self.query, self.doc1, self.doc2)
+            print(f"Result for {axiom_class.__class__.__name__}: {result}")
+          
+  def _get_axiom_class(self, axiom_name):
+        # Implement logic to retrieve the axiom class based on its name
+        axiom_classes_mapping = {
+            "TFC1": self.TFC1(),
+            "TFC3": self.TFC3(),
+            "PROX1": self.PROX1(),
+            "PROX2": self.PROX2(),
+            "PROX3": self.PROX3(),
+            "PROX4": self.PROX4(),
+            "PROX5": self.PROX5(),
+            "LNC1": self.LNC1(),
+            "LNC2": self.LNC2(),
+            "LB1": self.LB1(),
+            "STMC1": self.STMC1(),
+            "AND": self.AND(),
+            "REG": self.REG(),
+            "DIV": self.DIV()
+        }
+        return axiom_classes_mapping.get(axiom_name)
+          
   class TFC1:
 
     def compare(self,query, document1, document2):
@@ -228,29 +259,31 @@ class pairwise:
           # If the Jaccard coefficient is less than 80%, return 0
           return 0
 
-    def TF_LNC(self,query, doc1, doc2):
-      # Check if the query is a single word
-      if " " in query:
-          return 0
-
-      # Count the number of occurrences of the query term in each document
-      count_query_terms_doc1 = doc1.split().count(query)
-      count_query_terms_doc2 = doc2.split().count(query)
-
-      # Check if the lengths of both documents are the same within a 10% difference
-      max_allowed_length_difference = 0.1 * min(len(doc1), len(doc2))
-      if abs(len(doc1) - len(doc2)) <= max_allowed_length_difference:
-          # Return the document with the higher occurrence of the query term
-          if count_query_terms_doc1 > count_query_terms_doc2:
-              return 1
-          elif count_query_terms_doc1 < count_query_terms_doc2:
-              return -1
-          else:
-              # If both documents have the same occurrence, return 0
-              return 0
-      else:
-          # If the length difference is outside the 10% range, return 0
-          return 0
+    class TF_LNC:
+      
+      def compare(self,query, doc1, doc2):
+        # Check if the query is a single word
+        if " " in query:
+            return 0
+  
+        # Count the number of occurrences of the query term in each document
+        count_query_terms_doc1 = doc1.split().count(query)
+        count_query_terms_doc2 = doc2.split().count(query)
+  
+        # Check if the lengths of both documents are the same within a 10% difference
+        max_allowed_length_difference = 0.1 * min(len(doc1), len(doc2))
+        if abs(len(doc1) - len(doc2)) <= max_allowed_length_difference:
+            # Return the document with the higher occurrence of the query term
+            if count_query_terms_doc1 > count_query_terms_doc2:
+                return 1
+            elif count_query_terms_doc1 < count_query_terms_doc2:
+                return -1
+            else:
+                # If both documents have the same occurrence, return 0
+                return 0
+        else:
+            # If the length difference is outside the 10% range, return 0
+            return 0
 
   class LB1:
 
