@@ -106,6 +106,36 @@ class explain_more:
             print(f"Length of document1: {len(document1)}")
             print(f"Length of document2: {len(document2)}")
 
+    class TF_LNC:
+
+        def explain(query, document1, document2):
+
+            query_words = set(query.split())
+            document1_words = set(document1.split())
+            document2_words = set(document2.split())
+        
+            common_words1 = query_words.intersection(document1_words)
+            common_words2 = query_words.intersection(document2_words)
+            
+        
+            words1 = document1.split()
+            words2 = document2.split()
+        
+            filtered_words1 = [word for word in words1 if word not in common_words1]
+            filtered_words2 = [word for word in words2 if word not in common_words2]
+        
+            new_doc1 = ' '.join(filtered_words1)
+            new_doc2 = ' '.join(filtered_words2)
+        
+            max_len = max(len(new_doc1), len(new_doc2))  
+            tolerance = 0.1 * max_len
+        
+            if abs(len(new_doc1) - len(new_doc2)) > tolerance:
+                print("Documents are not of approximately equal length")
+            else:
+                print(f"Query terms in document1: {len(common_words1)}")
+                print(f"Query terms in document2: {len(common_words2)}")
+
     
            
         
