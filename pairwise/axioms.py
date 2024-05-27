@@ -210,7 +210,7 @@ class pairwise:
   class LNC1:
   
     def compare(self,query, doc1, doc2):
-      # Tokenize the query sentence into words
+      
       query_words = query.split()
 
       # Count the number of query terms in each document
@@ -261,29 +261,36 @@ class pairwise:
 
     class TF_LNC:
       
-      def compare(self,query, doc1, doc2):
-        # Check if the query is a single word
-        if " " in query:
-            return 0
-  
-        # Count the number of occurrences of the query term in each document
-        count_query_terms_doc1 = doc1.split().count(query)
-        count_query_terms_doc2 = doc2.split().count(query)
-  
-        # Check if the lengths of both documents are the same within a 10% difference
-        max_allowed_length_difference = 0.1 * min(len(doc1), len(doc2))
-        if abs(len(doc1) - len(doc2)) <= max_allowed_length_difference:
-            # Return the document with the higher occurrence of the query term
-            if count_query_terms_doc1 > count_query_terms_doc2:
-                return 1
-            elif count_query_terms_doc1 < count_query_terms_doc2:
+      def compare(query, document1, document2):
+
+          query_words = set(query.split())
+          document1_words = set(document1.split())
+          document2_words = set(document2.split())
+      
+          common_words1 = query_words.intersection(document1_words)
+          common_words2 = query_words.intersection(document2_words)
+      
+          words1 = document1.split()
+          words2 = document2.split()
+      
+          filtered_words1 = [word for word in words1 if word not in common_words1]
+          filtered_words2 = [word for word in words2 if word not in common_words2]
+      
+          new_doc1 = ' '.join(filtered_words1)
+          new_doc2 = ' '.join(filtered_words2)
+      
+          max_len = max(len(new_doc1), len(new_doc2))  
+          tolerance = 0.1 * max_len
+      
+          if abs(len(new_doc1) - len(new_doc2)) > tolerance:
+              return 0
+          else:
+              if common_words1 > common_words2:
                 return -1
-            else:
-                # If both documents have the same occurrence, return 0
+              if common_words1 < common_words2:
+                return 1
+              if common_words1 == common_words1:
                 return 0
-        else:
-            # If the length difference is outside the 10% range, return 0
-            return 0
 
   class LB1:
 
