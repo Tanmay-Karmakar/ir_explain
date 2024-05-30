@@ -150,6 +150,31 @@ class explain_more:
             print(f"Query terms present in document 1 but not in document 2 {unique_to_doc1}")
             print(f"Query terms present in document 2 but not in document 1 {unique_to_doc2}")
 
+    class AND:
+
+        def explain(query, document1, document2):
+            
+            query_terms = set(query.lower().split())
+            doc1_terms = set(document1.lower().split())
+            doc2_terms = set(document2.lower().split())
+
+            if query_terms.issubset(doc1_terms):
+                print("All query terms present in document 1")
+            if query_terms.issubset(doc2_terms):
+                print("All query terms present in document 2")
+        
+            not_in_doc1 = query_terms - doc1_terms
+            if not_in_doc1:
+                print("Query terms not present in document 1:", not_in_doc1)
+            else:
+                print("All query terms are present in document 1")
+        
+            not_in_doc2 = query_terms - doc2_terms
+            if not_in_doc2:
+                print("Query terms not present in document 2:", not_in_doc2)
+            else:
+                print("All query terms are present in document 2")
+
 
     
            
