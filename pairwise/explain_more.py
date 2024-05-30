@@ -136,6 +136,21 @@ class explain_more:
                 print(f"Query terms in document1: {len(common_words1)}")
                 print(f"Query terms in document2: {len(common_words2)}")
 
+    class LB1:
+
+        def explain(query, document1, document2):
+    
+            query_terms = set(query.lower().split())
+            doc1_terms = set(document1.lower().split())
+            doc2_terms = set(document2.lower().split())
+
+            unique_to_doc1 = [term for term in query_terms if term in doc1_terms and term not in doc2_terms]
+            unique_to_doc2 = [term for term in query_terms if term in doc2_terms and term not in doc1_terms]
+
+            print(f"Query terms present in document 1 but not in document 2 {unique_to_doc1}")
+            print(f"Query terms present in document 2 but not in document 1 {unique_to_doc2}")
+
+
     
            
         
