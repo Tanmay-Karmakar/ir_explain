@@ -6,10 +6,18 @@ class pairwise:
         self.doc2 = doc2
         self.index_path = index_path
 
-  def explain(self, axiom_classes):
+  def explain(self, query, doc1, doc2, axiom_classes):
+        
+        results = {'Query': query, 'Document 1': doc1[:25], 'Document 2': doc2[:25]}
+
         for axiom_class in axiom_classes:
-            result = axiom_class.compare(self.query, self.doc1, self.doc2)
-            print(f"Result for {axiom_class.__class__.__name__}: {result}")
+            axiom_name = axiom_class.__class__.__name__
+            result = axiom_class.compare(query, doc1, doc2)
+            results[axiom_name] = result
+
+        df = pd.DataFrame([results])
+        
+        return df
           
   def _get_axiom_class(self, axiom_name):
         # Implement logic to retrieve the axiom class based on its name
