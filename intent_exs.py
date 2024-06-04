@@ -5,6 +5,14 @@ import math
 from functools import partial
 import random
 from itertools import combinations
+from pyserini.analysis import Analyzer, get_lucene_analyzer
+import gensim.downloader as api
+from collections import Counter
+import nltk
+from dataIterDrmm import matching_histogram_mapping
+
+pretrained_embeddings = 'glove-wiki-gigaword-100'
+Word_Vectors = api.load(pretrained_embeddings)
 
 
 # generate candidates
@@ -32,6 +40,10 @@ class IntentEXS:
             pass
         elif exp_model.lower() == 'lmdir':
             pass
+        elif exp_model.lower() == 'saliency':
+            self.exp_model = self._saliency
+        elif exp_model.lower() == 'semantic':
+            self.exp_model = self._semantic
         else:
             raise NotImplementedError(f'Only support bm25.')
 
@@ -41,10 +53,81 @@ class IntentEXS:
         self._gen_matrix = partial(gen_matrix, self.exp_model)
         self._optimize = greedy
 
-    def _bm25_model(self, doc_id: str, term: str):
+    def _bm25_model(self, doc_id: str, term: str, doc, analyzer, max_token: int = 510):
         """ Use BM25 model as the explainer."""
         return self.indexer.compute_bm25_term_weight(doc_id, term, analyzer=None)
     
+    
+    def _saliency(self, doc_id, token: Union[str, List[str]], doc: str, analyzer, max_tokens: int = 510) -> Union[float, List[float]]:
+        doc = doc.lower()
+        def analyze_sent(doc: str):
+            sents = nltk.sent_tokenize(doc)
+            if analyzer:
+                tokens = analyzer.analyze(doc)
+                sents_analyzed = [Counter(analyzer.analyze(s)) for s in sents]
+            else:
+                #tokens = nltk.word_tokenize(doc)   # nltk tokenization
+                sents_analyzed = [Counter(nltk.word_tokenize(doc)) for s in sents]    
+                #sents_analyzed = [Counter(analyzer.analyze(s)) for s in sents]
+            return sents_analyzed
+
+        analyzed = analyze_sent(doc)
+
+        def single(token, analyzed):
+            tfs = [s[token] for s in analyzed]
+            sent_freq = np.sign(tfs).sum() / float(len(tfs))
+            if sent_freq > 0:
+                tfs = [(s_i, tf) for s_i, tf in enumerate(tfs) if tf>0]
+                #if norm:
+                    #term_freq = math.log(sum([tf ** (1 / (1 + s)) for s, tf in tfs]) + 1)
+                #else:
+                term_freq = math.log(sum([2 ** (1 / (1 + s)) for s, tf in tfs]) + 1)  # ignore concrete term frequency value.
+                return sent_freq * term_freq   # > 0 
+            else:
+                return 0   # token doesn't exist.
+
+        if isinstance(token, str):
+            token = [token]
+        scores = [single(tok, analyzed) for tok in token]
+        if len(scores) == 1:
+            return scores[0]
+        else:
+            return scores
+
+    def _semantic(self, doc_id, token: Union[str, List[str]], doc: str, analyzer, max_tokens: int=510) -> Union[float, List[float]]:
+        """ too  slow, change to doc centered."""
+        doc = doc.lower()
+        def word2vec(vectors, token):
+            try:
+                vec = vectors[token]
+            except:
+                vec = np.array([None])
+            return vec
+        
+        def similarity(t_vec, d_vec, num_bins=20):
+            if t_vec.any():
+                hist = matching_histogram_mapping([t_vec], d_vec, num_bins=num_bins)
+                hist = hist[0]
+                similarity = sum([hist[i]*i for i in range(len(hist))])/len(emb_doc)/(len(hist)-1) 
+            else:
+                similarity = 0
+            return similarity
+
+        if analyzer:
+            emb_doc = [word2vec(Word_Vectors, t) for t in analyzer.analyze(doc) if word2vec(Word_Vectors, t).any()]
+        else:
+            emb_doc = [word2vec(Word_Vectors, t) for t in nltk.word_tokenize(doc) if word2vec(Word_Vectors, t).any()]
+        
+        if isinstance(token, str):
+            token = [token]
+        emb_token = [word2vec(Word_Vectors, t) for t in token]
+        similarities = [similarity(emb_t, emb_doc) for emb_t in emb_token]
+        if len(similarities) == 1:   # only a single word/value
+            return similarities[0]
+        else:
+            return similarities
+
+
     def explain(self, corpus: Dict[str, Any], params: Dict[str, Union[int, str]]) -> List[str]:
         """ A pipeline including candidates, matrix generation, and extract intent using greedy algorithm.
             Args:
@@ -62,7 +145,7 @@ class IntentEXS:
         self.candidates = candidates
         doc_pairs = self._gen_pairs(params['style'], len(doc_ids), params['topk'], params['max_pair'])
         #print(f'sampled pairs: {len(doc_pairs)}')
-        matrix = self._gen_matrix(doc_ids, candidates, doc_pairs)
+        matrix = self._gen_matrix(doc_ids, candidates, doc_pairs, corpus)
         self.matrix = matrix
         expansion = self._optimize(candidates, matrix, params['max_intent'])
         return expansion
@@ -77,6 +160,8 @@ def gen_candidates(indexer: IndexReader, ranker: Callable, corpus: Dict[str, Dic
         #print(doc_id)
         doc = corpus['docs'][doc_id]
         score = corpus['scores'][doc_id]
+        #print(score)
+        score = float(score)
         # get the terms sorted by tf-idf scores for a particular doc 
         terms_sorted = terms_tfidf(indexer, doc_id)[:2*top_idf]   # keep 2*top_idf terms for perturbation for now.
         new_input_pairs = [(query, doc_perturb(doc, term[0])) for term in terms_sorted]
@@ -121,7 +206,7 @@ def gen_pairs(style: str, length: int, topk: int, max_pair: int, seed: int) -> L
     return pairs
 
 
-def gen_matrix(exp_model: Callable, doc_ids: List[str], candidates: List[str], pairs: List[Tuple]) -> np.array:
+def gen_matrix(exp_model: Callable, doc_ids: List[str], candidates: List[str], pairs: List[Tuple], corpus: Dict[str, Dict[str, Any]]) -> np.array:
     """ Generate the matrix, given candidates and sampled document pairs.
         exp_model : simple explanation model like BM25, LMDIR, etc...
         doc_ids: list of documents ids
@@ -131,10 +216,12 @@ def gen_matrix(exp_model: Callable, doc_ids: List[str], candidates: List[str], p
     matrix = []
     idx_set = set([p for pair in pairs for p in pair])
     # compute all bm25 scores.
+    # TODO : plug different scoring fuctions
     BM25_scores = {}
     for idx in idx_set:
         doc_id = doc_ids[idx]
-        BM25_scores[doc_id] = np.array([exp_model(doc_id, term) for term in candidates])
+        doc = corpus['docs'][doc_id]
+        BM25_scores[doc_id] = np.array([exp_model(doc_id, term, doc, analyzer = None) for term in candidates])
 
     for rank_h, rank_l in pairs:
         docid_h, docid_l = doc_ids[rank_h], doc_ids[rank_l]
@@ -198,8 +285,10 @@ def terms_tfidf(indexer: IndexReader, doc_id: str) -> List[Tuple[str, float]]:
         terms with tf-idf score, sorted, a list of tuple. 
     """
     num_docs = indexer.stats()['documents']  # the number of documents
+    print(f'docid: {doc_id}')
     tf = indexer.get_document_vector(doc_id)
-    df = {term: (indexer.get_term_counts(term))[0] for term in tf.keys()}
+
+    df = {term: (indexer.get_term_counts(term, analyzer=None))[0] for term in tf.keys()}
     tf_idf = {term: tf[term] * math.log(num_docs/(df[term] + 1)) for term in tf.keys() } 
     terms_sorted = sorted(tf_idf.items(), key=lambda x: x[1], reverse=True)
     return terms_sorted

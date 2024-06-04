@@ -64,3 +64,31 @@ def get_candidates(index_reader: IndexReader, docid: str, topk: int) -> Dict:
     sorted_x = sorted(tfidf.items(), key=lambda kv: kv[1], reverse=True)
     sorted_nostop = [(a, b) for a, b in sorted_x if a not in STOP]
     return dict(sorted_nostop[:topk])
+
+"""
+return the following:
+1. qid -> list of docids
+2. qid -> list of docscores 
+"""
+def load_from_res(res_file_path):
+    qid_docid_list = {}
+    qid_docscore_list = {}
+
+    res_file = open(res_file_path, 'r')
+    lines = res_file.readlines()
+
+    for line in lines:
+        qid, _, docid, rank, score, _ = line.split()
+        list_of_docids = []
+        list_of_docscores = []
+        if qid in qid_docid_list:
+            list_of_docids = qid_docid_list[qid]
+            list_of_docscores = qid_docscore_list[qid]
+
+        list_of_docids.append(docid)
+        list_of_docscores.append(score)
+
+        qid_docid_list[qid] = list_of_docids
+        qid_docscore_list[qid] = list_of_docscores
+
+    return qid_docid_list, qid_docscore_list

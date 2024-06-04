@@ -17,10 +17,13 @@ index_reader = IndexReader("/b/administrator/collections/indexed/msmarco-v1-pass
 # hard-coded as of now: TODO : change it later
 qrel_path = "/b/administrator/collections/qrels/2019qrels-pass.txt"
 query_path = "/b/administrator/collections/queries/msmarco-test2019-queries.tsv"
-output_path = "/tmp/greedy.res.foo"
-res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/colberte2e_bertqe_sorted.2019.res"
-#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/ANCE.2019.res"
+output_path = "/tmp/greedy."
 
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/BM25_deepct_ColBERT.2019.res"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/colberte2e_bertqe_sorted.2019.res"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/ANCE.2019.res"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/ColbertE2E_sorted.2019.res"
+res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/trecdl.monot5.rr.pos-scores.res"
 
 searcher.set_bm25(1.2, 0.75)     # set BM25 parameter
 #searcher.set_bm25()     # set BM25 parameter
@@ -37,7 +40,7 @@ searcher.set_analyzer(get_lucene_analyzer(stemmer='porter'))
 # constants
 GREEDY_VOCAB_TERMS = 100
 BFS_TOP_DOCS = GREEDY_TOP_DOCS_NUM = 10
-GREEDY_MAX_DEPTH = 10
+GREEDY_MAX_DEPTH = 20
 
 
 def load_from_res(res_file_path):
@@ -82,7 +85,7 @@ def compute_rbo(bm25_hits, dr_hits):
 
 def greedy(qid, query_str, term_weight_list, searcher, dense_ranking):
     """
-    bfs algorithm to generate the expanded query
+    greedy algorithm to generate the expanded query
     Paper link: https://arxiv.org/pdf/2304.12631.pdf
     """
     searcher.unset_rm3()
@@ -132,7 +135,8 @@ def greedy(qid, query_str, term_weight_list, searcher, dense_ranking):
     return tuple((final_similarity, final_query))
 
 count = 0
-results = [] 
+results = []
+avg_rbo = 0 
 for query in dataset.queries_iter():
     count += 1
     query_str = query.text
@@ -144,7 +148,7 @@ for query in dataset.queries_iter():
     
     #dr_hits = dr_searcher.search(query_str)
     #dr_hits = searcher.search(query_str)
-    searcher.set_rm3(1000, 10, 0.9)   # set parameter for rm3
+    searcher.set_rm3(1000, 10, 0.7)   # set parameter for rm3
 
     term_weight_list = searcher.get_feedback_terms(query_str)
     print(term_weight_list)
@@ -158,16 +162,19 @@ for query in dataset.queries_iter():
     # search with the expanded query formed by bfs
     final_hits = searcher.search(best_state[1])
     #final_hits = dr_searcher.search(best_state[0])          # just for sanity check 
-
+    avg_rbo += float(best_state[0])
     results.append(tuple((qid, final_hits)))
     
     #break
 
 print(f'Total number of query {count}')
+avg_rbo = avg_rbo/count
+print(f'RBO for the entire query set {avg_rbo}')
 
 #print(f'length of the result file : {len(results)}')
 qrels = ir_measures.read_trec_qrels(qrel_path)
 tag = "greedy-qe"
+output_path = output_path + res_file_path.split("/")[-1] + ".reproduced"
 f = open(output_path, "w")
 for qid, hits in results:
     for i in range(0, len(hits)):

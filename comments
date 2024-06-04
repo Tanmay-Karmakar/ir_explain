@@ -34,6 +34,9 @@
     # rerank : 
     # multi_rank :
 
+InferenceDataset ta ki?
+
+
 sample doc pair function :
 topk_rank_random ->> eta added EXS e
 negligible rank difference hole je baad  ->> lijun ECIR 2023 e added 
@@ -44,3 +47,7 @@ TREC DL 2020 hard
 1. causes of stroke? 
 2. what is the daily life of thai people
 3. what causes heavy metal toxins in your body
+
+To reproduce the results produced by DG, SIGIR 2023:
+trec_eval -M 10 -l2 /b/administrator/collections/qrels/2019qrels-pass.txt ANCE.2019.res
+

@@ -24,9 +24,13 @@ index_reader = IndexReader("/b/administrator/collections/indexed/msmarco-v1-pass
 # hard-coded as of now: TODO : change it later
 qrel_path = "/b/administrator/collections/qrels/2019qrels-pass.txt"
 query_path = "/b/administrator/collections/queries/msmarco-test2019-queries.tsv"
-output_path = "/tmp/res.foo"
-res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/colberte2e_bertqe_sorted.2019.res"
+output_path = "/tmp/bfs_"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/BM25_deepct_ColBERT.2019.res"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/colberte2e_bertqe_sorted.2019.res"
 #res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/ANCE.2019.res"
+res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/ColbertE2E_sorted.2019.res"
+#res_file_path = "/a/administrator/codebase/neural-ir/ir_explain/runs/NRMs/trecdl.monot5.rr.pos-scores.res"
+
 
 
 searcher.set_bm25(1.2, 0.75)     # set BM25 parameter
@@ -55,7 +59,7 @@ searcher.set_analyzer(get_lucene_analyzer(stemmer='porter'))
 
 # constants
 QUEUE_MAX_DEPTH = 1000 # 10
-BFS_MAX_EXPLORATION = 10
+BFS_MAX_EXPLORATION = 25
 BFS_VOCAB_TERMS = 30 # 30
 BFS_MAX_DEPTH = 10
 BFS_TOP_DOCS = 10
@@ -98,7 +102,7 @@ def load_from_res(res_file_path):
     #sys.exit(1)
     return qid_docid_list
 
-
+# TODO: pass flag: which similarity measure to use:
 def compute_rbo(bm25_hits, dr_hits):
     """
     Compute rbo between two ranked list 
@@ -171,7 +175,7 @@ def bfs(qid, query_str, term_weight_list, searcher, dense_ranking):
         print(len(bm25_hits))
         if len(bm25_hits) == 0:
             continue
-        similarity_rbo = compute_rbo(bm25_hits, dense_ranking[qid])
+        similarity_rbo = compute_rbo(bm25_hits, dense_ranking)
         # initial_state = tuple((term, similarity_rbo))                   # hack : put priority as negative
         initial_state = tuple((similarity_rbo, term))                   
 
@@ -208,7 +212,7 @@ def bfs(qid, query_str, term_weight_list, searcher, dense_ranking):
                 if  new_query not in dict(maxQ.queue) and len(new_query.split()) < BFS_MAX_DEPTH:
                     # retrieve with the new expanded query
                     new_top_docs = searcher.search(new_query, BFS_TOP_DOCS)
-                    new_similarity_rbo = compute_rbo(new_top_docs, dense_ranking[qid])
+                    new_similarity_rbo = compute_rbo(new_top_docs, dense_ranking)
         
                     if new_similarity_rbo >= current_best[0] and new_similarity_rbo > 0:
                         element = tuple((new_similarity_rbo, new_query))
@@ -230,6 +234,7 @@ def bfs(qid, query_str, term_weight_list, searcher, dense_ranking):
 
 count = 0
 results = [] 
+avg_rbo = 0
 for query in dataset.queries_iter():
     count += 1
     query_str = query.text
@@ -240,13 +245,17 @@ for query in dataset.queries_iter():
     dense_ranking = load_from_res(res_file_path)
     
     #dr_hits = dr_searcher.search(query_str)
+    #dense_ranking_list = []
+    #for index in range(len(dr_hits)):
+    #    dense_ranking_list.append(dr_hits[index].docid)
+
     #dr_hits = searcher.search(query_str)
-    searcher.set_rm3(1000, 10, 0.9)   # set parameter for rm3
+    searcher.set_rm3(200, 10, 0.7)   # set parameter for rm3
 
     term_weight_list = searcher.get_feedback_terms(query_str)
     print(term_weight_list)
     term_weight_list = dict(sorted(term_weight_list.items(), key=lambda item: item[1]))
-    best_state = bfs(qid, query_str, term_weight_list, searcher, dense_ranking)
+    best_state = bfs(qid, query_str, term_weight_list, searcher, dense_ranking[qid])
     #best_state = tuple((query_str, 0))              # just for debug: TODO uncomment it
 
     # print qid, expanded query, RBO, map 
@@ -255,16 +264,19 @@ for query in dataset.queries_iter():
     # search with the expanded query formed by bfs
     final_hits = searcher.search(best_state[1])
     #final_hits = dr_searcher.search(best_state[0])          # just for sanity check 
-
+    avg_rbo += float(best_state[0])
     results.append(tuple((qid, final_hits)))
 
     #break
 
 print(f'Total number of query {count}')
+avg_rbo = avg_rbo/count
+print(f'RBO for the entire query set {avg_rbo}')
 
 #print(f'length of the result file : {len(results)}')
 qrels = ir_measures.read_trec_qrels(qrel_path)
 tag = "bfs-qe"
+output_path = output_path + res_file_path.split("/")[-1] + ".reproduced"
 f = open(output_path, "w")
 for qid, hits in results:
     for i in range(0, len(hits)):
