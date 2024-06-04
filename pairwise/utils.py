@@ -71,3 +71,6 @@ def get_most_similar_term(query_terms):
 
     return most_similar_term
 
+def calculate_avg_distance(occurrences):
+    distances = [occurrences[i+1] - occurrences[i] for i in range(len(occurrences)-1)]
+    return sum(distances) / len(distances) if distances else 0
