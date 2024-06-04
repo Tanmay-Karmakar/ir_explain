@@ -148,8 +148,7 @@ class LimeRankerExplainer(object):
         np.random.seed(random_state)
         self.random_state = None#random_state #check_random_state(random_state)
         
-        #print('Random State', self.random_state, \
-                 random_state)
+        #print('Random State', self.random_state, random_state)
         if kernel_width is None:
             kernel_width = np.sqrt(100) * .75
         kernel_width = float(kernel_width)
