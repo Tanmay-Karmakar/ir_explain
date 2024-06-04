@@ -1,19 +1,8 @@
 !pip install pyserini==0.25.0
 !pip install faiss-cpu
-!pip install lime
-!pip install chart_studio
+#!pip install lime
 !pip install beir
-
-
-!pip install typing-extensions==4.8.0
-#!pip install typing
-
-from typing_extensions import Iterator
-
 !pip install --upgrade ir_datasets
-
-
-
 
 
 ##for google colab##
