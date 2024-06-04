@@ -147,8 +147,8 @@ class LimeRankerExplainer(object):
         self.feature_selection = feature_selection
         np.random.seed(random_state)
         self.random_state = None#random_state #check_random_state(random_state)
-        print("TEST")
-        print('Random State', self.random_state, \
+        
+        #print('Random State', self.random_state, \
                  random_state)
         if kernel_width is None:
             kernel_width = np.sqrt(100) * .75
@@ -222,7 +222,7 @@ class LimeRankerExplainer(object):
         #print(document_dict.keys())
         print('Document score', document_score)
         sample_vectors, distances = self._data_labels_distance(samples, document_dict)
-        print("sample_vectors length: (for feature_selection num of features; min(shape, num_features))", len(sample_vectors))
+        #print("sample_vectors length: (for feature_selection num of features; min(shape, num_features))", len(sample_vectors))
         domain_mapper = TextDomainMapper(document_dict)
 
         explanations = []
@@ -250,7 +250,8 @@ class LimeRankerExplainer(object):
 
             weights = self.base.kernel_fn(distances, kernel_width = entry)
 
-            print("feature_selection : " , self.feature_selection)  ##Added by Harsh for testing
+            if self.base.verbose:
+                print("feature_selection : " , self.feature_selection)  ##Added by Harsh for testing
             for label in labels:
                 (ret_exp.intercept[label],
                 ret_exp.local_exp[label],

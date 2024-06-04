@@ -26,7 +26,7 @@ class LimeBase(object):
         self.kernel_fn = kernel_fn
         self.verbose = verbose
         self.random_state = random_state #check_random_state(random_state)
-        print('Random State Base', self.random_state,\
+        #print('Random State Base', self.random_state,\
                  random_state)
 
     @staticmethod
