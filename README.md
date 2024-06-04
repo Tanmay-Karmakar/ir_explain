@@ -27,7 +27,31 @@ git clone https://github.com/souravsaha/ir_explain
 
 ### Installing requirements
 
+The necessary libraries to support `ir_explain` are mentioned in the requirements.txt file.
+
+These can be installed using `pip` before using `ir_explain`
 
 ## Usage
 
 We have uploaded notebooks in `ir_explain/examples/` to demonstrate how the modules in `ir_explain` can be used to generate post-hoc explanations
+
+### Pointwise example
+`ir_explain/examples/pointwise_demo.ipynb` shows a sample usage of the Pointwise methods EXS and Lirme to generate post-hoc pointwise explanations
+ 
+ The EXS module can be instantiated using the class `ExplainableSearch`
+ 
+ During initialization, the neural reranker and the parameters such as classification method (svm or l.r.) are needed. 
+
+```
+exs_explainer = ExplainableSearch(reranker, 'svm', num_samples=100)
+```
+
+Similary the lirme module can be instantiated using the class `Lirme`
+
+During initialization, Lirme requires the index_path to be given, so that it can fetch documents and the tf-idf data of the index, which is required while generating the explanations
+
+```
+lirme_explainer = Lirme(index_path)
+```
+
+The notebook shows the different functions and how they can be used to generate the explanations using these two methodologies
