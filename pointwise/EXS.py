@@ -42,7 +42,21 @@ class ExplainableSearch(Pointwise):
         else:
             raise NotImplementedError('Only support lr and svm. :(')
 
-    def explain(self, corpus: Dict[str, Dict[str, float]], docs_exp: Dict[str, Dict[str, Tuple[str, int]]], topk: Union[int, Dict[str, int], List[str]], Method: Union[str, Dict[str, str]], seed: int=10) -> Dict[str, np.array]:
+    def build_input_exs(self, query, doc_id_list, rerank_score_list, rank_to_explain, doc_text_at_r):
+        # build input for explaining function, use one query as example.
+        exp_input = {}
+        exp_input[query] = dict([(a, b) for a, b in zip(doc_id_list, rerank_score_list)])
+        #for key, value in exp_input[query].items():
+        #    print(key, value, '\n')
+        # explain the picked doc, use the 1-th ranked doc as the baseline, use topk-bin method.
+        # the returned results include {query: (words, weights)}.
+        exp_doc = {query: {'rank': rank_to_explain - 1, 'text':doc_text_at_r}}
+
+        return (exp_input, exp_doc)
+    
+    
+    #def explain(self, corpus: Dict[str, Dict[str, float]], docs_exp: Dict[str, Dict[str, Tuple[str, int]]], topk: Union[int, Dict[str, int], List[str]], Method: Union[str, Dict[str, str]], seed: int=10) -> Dict[str, np.array]:
+    def explain(self, query, doc_ids_array, rerank_scores_array, topk, doc_at_r, Method: Union[str, Dict[str, str]], seed: int=10) -> Dict[str, np.array]:
         """ Explain the rank for a group of queries.
             Args:
                 corpus: the query-doc-rerank datasets. The format should follow:
@@ -51,6 +65,12 @@ class ExplainableSearch(Pointwise):
                 topk: integer, the baseline doc's rank which is used to explain the doc in doc_ids
 
         """
+        
+        inp_exs = self.build_input_exs(query, doc_ids_array, rerank_scores_array, topk, doc_at_r)
+        
+        corpus = inp_exs[0]
+        docs_exp = inp_exs[1]
+        
         Results = {}
         for query in corpus:
             if isinstance(topk, dict):  # choose different baseline doc for each query.
@@ -191,6 +211,41 @@ class ExplainableSearch(Pointwise):
             raise ValueError('Invalid method.')
         return labels
 
+    def remove_stopwords_from_explanation(self, results, stopword_file_path=None):
+        
+        if(stopword_file_path is None):
+            stopword_file_path = "/content/stop.txt"
+        with open(stopword_file_path, 'r') as file:
+            # Read the entire content of the file
+            text = file.read()
+            # Split the content into words
+            stopwords = text.split()
+        
+        results_no_stopword = {}
+        for query in results.keys():
+            results_no_stopword[query] = {}
+            results_no_stopword[query][0] = []
+            results_no_stopword[query][1] = []
+            
+            if len(results[query][1].shape) > 1:  # binary,
+                results_score_array = np.squeeze(results[query][1])
+            else:
+                results_score_array = results[query][1]
+            
+            #print(results_score_array)
+            for vocab,score in zip(results[query][0],results_score_array):
+                #print(vocab,score)
+                if(vocab not in stopwords):
+                  #print(vocab,score)
+                  results_no_stopword[query][0].append(vocab)
+                  results_no_stopword[query][1].append(score)
+                  #pass
+
+            results_no_stopword[query][0] = np.array(results_no_stopword[query][0])
+            results_no_stopword[query][1] = np.array(results_no_stopword[query][1])  
+        
+        return results_no_stopword
+    
     """
     inheriting
     def visualize(self, vocabs: np.array, coef: np.array, show_top: int=10, saveto: str='exs.pdf'):

@@ -11,7 +11,6 @@ import lime
 #upload lime_Ranker,lime_base file from local to installed lime location: /usr/local/lib/python3.10/dist-packages/lime
 #import lime.lime_ranker
 from lime import lime_ranker
-import pandas as pd
 
 
 class Lirme(Pointwise):
@@ -251,8 +250,8 @@ class Lirme(Pointwise):
             exp_vector = self.explanation_to_vector(word_list, exp_sorted_values,\
                               document_dict)
 
-            print("eobject: ", eobject.as_list())
-            print("exp_vector: ", exp_vector)
+            #print("eobject: ", eobject.as_list())
+            #print("exp_vector: ", exp_vector)
 
             term_vector = []
             for exp_score, exp_doc_tfidf in zip(exp_sorted_values, exp_vector.items()):
@@ -297,7 +296,7 @@ class Lirme(Pointwise):
 
         return (explanation_vectors, ranked_lists)
 
-    def explain(self, query, doc_id,  doc_score,  reranker, params, doc_text=None):
+    def explain(self, query, doc_id,  doc_score,  reranker, params, doc_text=None, verbose=False):
 
         #kernel_range = [10,15], num_top_terms=7, sampling_method='random_words'
         #Initialize parameters:
@@ -312,7 +311,7 @@ class Lirme(Pointwise):
 
         ranker_explanation = lime_ranker.LimeRankerExplainer(#kernel=uniform_kernel,\
 										  kernel_width = np.sqrt(100000) * .80,\
-										  random_state=123456, verbose=True, \
+										  random_state=123456, verbose=verbose, \
 										  relevance_labels=[0,1,2,3,4])
 
         sample_generator = PerturbDocument(200)

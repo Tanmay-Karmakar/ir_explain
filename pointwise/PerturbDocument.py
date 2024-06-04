@@ -49,12 +49,12 @@ class PerturbDocument():
 
       tokens = nltk.word_tokenize(doc_text)
       tokens_len = len(tokens)
-      print("num of tokens: ",tokens_len)
+      #print("num of tokens: ",tokens_len)
 
       num_chunks = (int) (tokens_len/chunk_size)
       if (tokens_len % chunk_size != 0):
         num_chunks += 1
-      print("num of chunks: ",num_chunks)
+      #print("num of chunks: ",num_chunks)
 
       mask_prob_generated = np.random.rand(self.num_samples, num_chunks+1)
       #print(mask_prob_generated)
