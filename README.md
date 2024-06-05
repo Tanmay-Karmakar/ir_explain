@@ -29,7 +29,10 @@ git clone https://github.com/souravsaha/ir_explain
 
 The necessary libraries to support `ir_explain` are mentioned in the requirements.txt file.
 
-These can be installed using `pip` before using `ir_explain`
+```
+pip3 install -r requirements.txt
+```
+ir_explain is tested on Python 3.8 and 3.9.
 
 ## Usage
 
