@@ -58,3 +58,11 @@ lirme_explainer = Lirme(index_path)
 ```
 
 The notebook shows the different functions and how they can be used to generate the explanations using these two methodologies
+
+### Reproducibility experiment
+
+We have conducted a subset of the reproducibility experiments of BFS and Greedy based listwise explainers on the TREC 2019 topic set. The figure shows the reproduced versions of MAP and RBO are denoted as MAP(reprod.) and RBO(reprod.) respectively. As of now, we have reported figures for the entire topic set. 
+
+![image](https://github.com/souravsaha/ir_explain/blob/main/examples/reproducibility-table.png)
+
+
