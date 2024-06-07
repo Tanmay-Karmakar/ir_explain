@@ -5,7 +5,7 @@ def calculate_avg_distance(occurrences):
     distances = [occurrences[i+1] - occurrences[i] for i in range(len(occurrences)-1)]
     return sum(distances) / len(distances) if distances else 0
 
-class explain_more:
+class explain_details:
 
     class TFC1:
     
