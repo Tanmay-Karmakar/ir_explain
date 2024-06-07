@@ -28,23 +28,53 @@ class pairwise:
         return df
 
   def evaluate_axiom_expression(self, expression, query, doc1, doc2):
-        elements = expression.split()
-        score = 0
-        current_op = '+'
+    elements = expression.split()
+    score = 0
+    current_op = '+'
+    current_coeff = 1
 
-        for element in elements:
-            if element in ['+', '-']:
-                current_op = element
-            else:
-                axiom = self._get_axiom_class(element)
+    def apply_operation(axiom_score):
+        nonlocal score
+        if current_op == '+':
+            score += current_coeff * axiom_score
+        elif current_op == '-':
+            score -= current_coeff * axiom_score
+
+    i = 0
+    while i < len(elements):
+        element = elements[i]
+
+        if element in ['+', '-']:
+            current_op = element
+            current_coeff = 1  
+        elif '*' in element or '/' in element:
+            parts = element.split('*')
+            if len(parts) == 2:
+                coeff, axiom_name = parts
+                current_coeff = int(coeff)
+                axiom = self._get_axiom_class(axiom_name)
                 if axiom:
                     axiom_score = axiom.compare(query, doc1, doc2)
-                    if current_op == '+':
-                        score += axiom_score
-                    elif current_op == '-':
-                        score -= axiom_score
+                    apply_operation(axiom_score)
+            else:
+                parts = element.split('/')
+                if len(parts) == 2:
+                    coeff, axiom_name = parts
+                    current_coeff = 1 / int(coeff)
+                    axiom = self._get_axiom_class(axiom_name)
+                    if axiom:
+                        axiom_score = axiom.compare(query, doc1, doc2)
+                        apply_operation(axiom_score)
+        else:
+            current_coeff = 1  
+            axiom = self._get_axiom_class(element)
+            if axiom:
+                axiom_score = axiom.compare(query, doc1, doc2)
+                apply_operation(axiom_score)
 
-        return score
+        i += 1
+
+    return score
 
   def explain_details(self, query, doc1, doc2, axiom_name):
         axiom_class = getattr(explain_more, axiom_name, None)
@@ -77,17 +107,19 @@ class pairwise:
   class TFC1:
 
     def compare(self,query, document1, document2):
-        query_words = set(query.split())
-        document1_words = set(document1.split())
-        document2_words = set(document2.split())
+        
+        def term_frequency(term, document):
+          return document.split().count(term)
 
-        common_words1 = len(query_words.intersection(document1_words)) / len(document1_words)
-        common_words2 = len(query_words.intersection(document2_words)) / len(document2_words)
+        query_terms = query.split()
+    
+        doc1_tf = sum(term_frequency(term, doc1) for term in query_terms)
+        doc2_tf = sum(term_frequency(term, doc2) for term in query_terms)
 
-        if abs(common_words1 - common_words2) <= 0.1 * min(common_words1, common_words2):
+        if abs(doc1_tf - doc2_tf) <= 0.1 * min(doc1_tf, doc2_tf):
             return 0
 
-        if common_words1 > common_words2:
+        if doc1_tf > doc2_tf:
             return 1
         else:
             return -1
@@ -194,6 +226,7 @@ class pairwise:
   class PROX3:
 
     def compare(self,query, document1, document2):
+      
       if query in document1 and query in document2:
           first_position_doc1 = document1.find(query)
           first_position_doc2 = document2.find(query)
@@ -213,13 +246,106 @@ class pairwise:
 
   class PROX4:
 
-    def compare(self,query, document1, document2):
-      pass
+    def compare(self,query, doc1, doc2):
+      
+      query_terms = set(query.split())
+
+      def smallest_span(document):
+          words = document.split()
+          term_positions = {term: [] for term in query_terms}
+          
+          for idx, word in enumerate(words):
+              if word in query_terms:
+                  term_positions[word].append(idx)
+          
+          min_span_length = float('inf')
+          min_span_non_query_count = float('inf')
+          min_span = []
+
+          for term in term_positions:
+              for start_pos in term_positions[term]:
+                  end_pos = start_pos
+                  for other_term in term_positions:
+                      if other_term != term:
+                          closest_pos = min(term_positions[other_term], key=lambda x: abs(x - start_pos))
+                          end_pos = max(end_pos, closest_pos)
+                  
+                  if end_pos - start_pos + 1 < min_span_length:
+                      min_span = words[start_pos:end_pos + 1]
+                      min_span_length = len(min_span)
+                      min_span_non_query_count = sum(1 for word in min_span if word not in query_terms)
+          
+          return min_span_non_query_count
+
+      def calculate_gap(document):
+          min_span_non_query_count = smallest_span(document)
+          words = document.split()
+          gap_frequency = words.count(str(min_span_non_query_count))
+          
+          return (min_span_non_query_count, gap_frequency)
+
+      gap1 = calculate_gap(doc1)
+      gap2 = calculate_gap(doc2)
+      
+      if gap1 < gap2:
+          return 1
+      elif gap1 > gap2:
+          return -1
+      else:
+          return 0
+
 
   class PROX5:
 
-    def compare(self,query, document1, document2):
-      pass
+    def compare(self,query, doc1, doc2):
+    
+      query_terms = query.split()
+
+      def find_positions(term, document):
+          positions = []
+          words = document.split()
+          for idx, word in enumerate(words):
+              if word == term:
+                  positions.append(idx)
+          return positions
+
+      def smallest_span_around(term_positions, all_positions, num_terms):
+          min_span = float('inf')
+          for pos in term_positions:
+              spans = []
+              for i in range(num_terms):
+                  term_pos = all_positions[i]
+                  if term_pos:
+                      distances = [abs(pos - p) for p in term_pos]
+                      spans.append(min(distances))
+              if len(spans) == num_terms:
+                  min_span = min(min_span, max(spans) - min(spans) + 1)
+          return min_span
+
+      def average_smallest_span(document):
+          all_positions = [find_positions(term, document) for term in query_terms]
+          total_span = 0
+          count = 0
+
+          for i, term_positions in enumerate(all_positions):
+              if term_positions:
+                  span = smallest_span_around(term_positions, all_positions, len(query_terms))
+                  if span < float('inf'):
+                      total_span += span
+                      count += 1
+
+          return total_span / count if count > 0 else float('inf')
+
+      span1 = average_smallest_span(doc1)
+      span2 = average_smallest_span(doc2)
+
+      if span1 < span2:
+          return 1
+      elif span1 > span2:
+          return -1
+      else:
+          return 0
+
 
   class LNC1:
 
@@ -244,6 +370,7 @@ class pairwise:
   class LNC2:
 
     def compare(self,query, doc1, doc2):
+      
       original_doc, copied_doc = (doc1, doc2) if len(doc1) <= len(doc2) else (doc2, doc1)
       original_words = set(original_doc.split())
       copied_words = set(copied_doc.split())
@@ -267,14 +394,14 @@ class pairwise:
           document1_words = set(document1.split())
           document2_words = set(document2.split())
 
-          common_words1 = query_words.intersection(document1_words)
-          common_words2 = query_words.intersection(document2_words)
+          doc1_tf = query_words.intersection(document1_words)
+          doc2_tf = query_words.intersection(document2_words)
 
           words1 = document1.split()
           words2 = document2.split()
 
-          filtered_words1 = [word for word in words1 if word not in common_words1]
-          filtered_words2 = [word for word in words2 if word not in common_words2]
+          filtered_words1 = [word for word in words1 if word not in doc1_tf]
+          filtered_words2 = [word for word in words2 if word not in doc2_tf]
 
           new_doc1 = ' '.join(filtered_words1)
           new_doc2 = ' '.join(filtered_words2)
@@ -285,11 +412,11 @@ class pairwise:
           if abs(len(new_doc1) - len(new_doc2)) > tolerance:
               return 0
           else:
-              if common_words1 > common_words2:
+              if doc1_tf > doc2_tf:
                 return -1
-              if common_words1 < common_words2:
+              if doc1_tf < doc2_tf:
                 return 1
-              if common_words1 == common_words1:
+              if doc1_tf == doc1_tf:
                 return 0
 
   class LB1:
