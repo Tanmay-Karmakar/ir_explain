@@ -108,6 +108,9 @@ class pairwise:
 
     def compare(self,query, document1, document2):
         
+        if abs(len(document1) - len(document2)) <= 0.1 * min(len(document1),len(document2)):
+            return 0
+
         def term_frequency(term, document):
           return document.split().count(term)
 
@@ -115,9 +118,6 @@ class pairwise:
     
         doc1_tf = sum(term_frequency(term, doc1) for term in query_terms)
         doc2_tf = sum(term_frequency(term, doc2) for term in query_terms)
-
-        if abs(doc1_tf - doc2_tf) <= 0.1 * min(doc1_tf, doc2_tf):
-            return 0
 
         if doc1_tf > doc2_tf:
             return 1
@@ -226,7 +226,6 @@ class pairwise:
   class PROX3:
 
     def compare(self,query, document1, document2):
-      
       if query in document1 and query in document2:
           first_position_doc1 = document1.find(query)
           first_position_doc2 = document2.find(query)
@@ -247,7 +246,6 @@ class pairwise:
   class PROX4:
 
     def compare(self,query, doc1, doc2):
-      
       query_terms = set(query.split())
 
       def smallest_span(document):
@@ -370,7 +368,6 @@ class pairwise:
   class LNC2:
 
     def compare(self,query, doc1, doc2):
-      
       original_doc, copied_doc = (doc1, doc2) if len(doc1) <= len(doc2) else (doc2, doc1)
       original_words = set(original_doc.split())
       copied_words = set(copied_doc.split())
