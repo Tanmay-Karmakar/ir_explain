@@ -60,10 +60,10 @@ params["optimize_method"] = "geno_multi"
 multi.explain(qid, query_str, params)
 
 # DEBUG/EXPLAIN Multiplex with additional details
-# e.g., 1) generate_candidates 2) generate_doc_pairs, 3) show_matrix
+# e.g., 1) generate_candidates, 2) show_matrix
 multi.generate_candidates(qid, query_str, params)
 
-multi.generate_doc_pairs(qid, query_str, params)
+#multi.generate_doc_pairs(qid, query_str, params)
 
 multi.show_matrix(qid, query_str, params)
 
