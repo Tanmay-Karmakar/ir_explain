@@ -45,7 +45,7 @@ We have uploaded notebooks in `ir_explain/examples/` to demonstrate how the modu
  
  During initialization, the neural reranker and the parameters such as classification method (svm or l.r.) are needed. 
 
-```
+```python
 exs_explainer = ExplainableSearch(reranker, 'svm', num_samples=100)
 ```
 
@@ -53,11 +53,56 @@ Similarly, the lirme module can be instantiated using the class `Lirme`
 
 During initialization, Lirme requires the index_path to be given, so that it can fetch documents and the tf-idf data of the index, which is required while generating the explanations
 
-```
+```python
 lirme_explainer = Lirme(index_path)
 ```
 
 The notebook shows the different functions and how they can be used to generate the explanations using these two methodologies
+
+## Pairwise example
+`ir_explain/examples/pairwise/Pairwise_Example_1.ipynb` shows a sample usage of the Pairwise module. The details axiom list can be found at `ir_explain/pairwise/README.md/`.
+
+To use pairwise component, go to the `ir_explain/pairwise` folder, initialize it with the query, two documents, and the index path as follows:
+
+```python
+from axioms import pairwise
+
+pairwise = pairwise(query, doc1, doc2, index_path)
+
+# instances of various axiom classes
+axiom_classes = ["TFC1", "STMC1", ...]
+
+pairwise.explain(axiom_classes)
+
+```
+
+
+
+
+## Listwise example
+`ir_explain/examples/listwise/` folder shows all four Listwise explanation examples. 
+
+To instantiate the `BFS` explainer of the listwise component, go to the `ir_explain/listwise` folder and do the following: 
+
+```python
+from bfs_explainer import BFS
+
+# initialize the parameters of BFS
+params = {
+    "QUEUE_MAX_DEPTH" : 1000,
+    "BFS_MAX_EXPLORATION" : 30,
+    "BFS_VOCAB_TERMS" : 30,
+    "BFS_MAX_DEPTH" : 10,
+    "BFS_TOP_DOCS" : 10,
+    "CORRELATION_MEASURE" : "RBO",
+    }
+
+exp_model = "bm25"
+
+# initialize the BFS class
+bfs = BFS(index_path, exp_model, params)
+```
+All other methods and calling conventions are mentioned in `ir_explain/examples/listwise/`.
 
 ## Reproducibility experiment
 
