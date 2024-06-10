@@ -36,6 +36,11 @@ pairwise = pairwise(query, doc1, doc2, index_path)
 Create a list of axiom classes that you want to use:
 
 ```python
+axiom_classes = [TFC1.(), STMC1.(), ...]
+```
+or by passing them as strings -
+
+```python
 axiom_classes = ["TFC1", "STMC1", ...]
 ```
 
