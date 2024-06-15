@@ -10,15 +10,16 @@ class explain_more:
     class TFC1:
 
           def explain(query, document1, document2):
-        
-            if abs(len(document1) - len(document2)) <= 0.1 * min(len(document1),len(document2)):
+
+            if abs(len(document1) - len(document2)) >= 0.1 * min(len(document1),len(document2)):
+                print("Lengths of documents not similar")
                 return 0
 
             def term_frequency(term, document):
               return document.split().count(term)
 
             query_terms = query.split()
-        
+
             doc1_tf = sum(term_frequency(term, doc1) for term in query_terms)
             doc2_tf = sum(term_frequency(term, doc2) for term in query_terms)
 
@@ -27,39 +28,62 @@ class explain_more:
 
     class PROX1:
 
-        def explain(query, document1, document2):
+          def calculate_avg_distance(occurrences):
+              if len(occurrences) < 2:
+                  return float('inf')  
+              distances = [occurrences[i + 1] - occurrences[i] for i in range(len(occurrences) - 1)]
+              return sum(distances) / len(distances)
 
-            query_words = query.split()
+          def explain(query, document1, document2):
+              query_words = query.split()
 
+              words_doc1 = document1.split()
+              words_doc1 = [word.replace('.', '') for word in words_doc1]
+              words_doc2 = document2.split()
+              words_doc2 = [word.replace('.', '') for word in words_doc2]
 
-            words_doc1 = document1.split()
-            words_doc1 = [word.replace('.', '') for word in words_doc1]
-            words_doc2 = document2.split()
-            words_doc2 = [word.replace('.', '') for word in words_doc2]
+              term_pairs = list(itertools.combinations(query_words, 2))
 
-            term_pairs = list(itertools.combinations(query_words, 2))
+              avg_distances = {pair: [] for pair in term_pairs}
+              term_frequencies = {word: {'Document 1': 0, 'Document 2': 0} for word in query_words}
 
-            avg_distances = {pair: [] for pair in term_pairs}
+              for term1, term2 in term_pairs:
+                  occurrences_doc1_term1 = [i for i, w in enumerate(words_doc1) if w == term1]
+                  occurrences_doc1_term2 = [i for i, w in enumerate(words_doc1) if w == term2]
 
-            for term1, term2 in term_pairs:
+                  occurrences_doc2_term1 = [i for i, w in enumerate(words_doc2) if w == term1]
+                  occurrences_doc2_term2 = [i for i, w in enumerate(words_doc2) if w == term2]
 
-                occurrences_doc1_term1 = [i for i, w in enumerate(words_doc1) if w == term1]
-                occurrences_doc1_term2 = [i for i, w in enumerate(words_doc1) if w == term2]
+                  avg_distance_doc1 = calculate_avg_distance(occurrences_doc1_term1) + calculate_avg_distance(occurrences_doc1_term2)
+                  avg_distance_doc2 = calculate_avg_distance(occurrences_doc2_term1) + calculate_avg_distance(occurrences_doc2_term2)
 
-                occurrences_doc2_term1 = [i for i, w in enumerate(words_doc2) if w == term1]
-                occurrences_doc2_term2 = [i for i, w in enumerate(words_doc2) if w == term2]
+                  avg_distances[(term1, term2)].extend([avg_distance_doc1, avg_distance_doc2])
 
-                avg_distance_doc1 = calculate_avg_distance(occurrences_doc1_term1) + calculate_avg_distance(occurrences_doc1_term2)
+              for word in query_words:
+                  term_frequencies[word]['Document 1'] = words_doc1.count(word)
+                  term_frequencies[word]['Document 2'] = words_doc2.count(word)
 
-                avg_distance_doc2 = calculate_avg_distance(occurrences_doc2_term1) + calculate_avg_distance(occurrences_doc2_term2)
+              rows = []
+              for word in query_words:
+                  row = [f'tf({word})', term_frequencies[word]['Document 1'], term_frequencies[word]['Document 2']]
+                  rows.append(row)
 
-                avg_distances[(term1, term2)].extend([avg_distance_doc1, avg_distance_doc2])
+              total_avg_dist_doc1 = 0
+              total_avg_dist_doc2 = 0
 
-            df = pd.DataFrame(avg_distances, index=['Document 1', 'Document 2']).T
-            df.index = pd.MultiIndex.from_tuples(df.index, names=['Term 1', 'Term 2'])
-            df.reset_index(inplace=True)
+              for term_pair, distances in avg_distances.items():
+                  row = [f'avg_dist({term_pair[0]}, {term_pair[1]})', distances[0], distances[1]]
+                  rows.append(row)
+                  total_avg_dist_doc1 += distances[0]
+                  total_avg_dist_doc2 += distances[1]
 
-            return df
+              num_pairs = len(term_pairs)
+              rows.append(['num pairs', num_pairs, num_pairs])
+              rows.append(['Total_avg_dist', total_avg_dist_doc1 / num_pairs, total_avg_dist_doc2 / num_pairs])
+
+              df = pd.DataFrame(rows, columns=['Metric', 'Document 1', 'Document 2'])
+
+              return df
 
     class PROX2:
 
@@ -94,7 +118,7 @@ class explain_more:
 
             print(f"First occurrence of the query in Document 1: {index_doc1 if index_doc1 != -1 else 'Not present'}")
             print(f"First occurrence of the query in Document 2: {index_doc2 if index_doc2 != -1 else 'Not present'}")
-    
+
     class PROX4:
 
         def explain(query, doc1, doc2):
@@ -103,11 +127,11 @@ class explain_more:
           def smallest_span(document):
               words = document.split()
               term_positions = {term: [] for term in query_terms}
-              
+
               for idx, word in enumerate(words):
                   if word in query_terms:
                       term_positions[word].append(idx)
-              
+
               min_span_length = float('inf')
               min_span_non_query_count = float('inf')
               min_span = []
@@ -119,31 +143,31 @@ class explain_more:
                           if other_term != term:
                               closest_pos = min(term_positions[other_term], key=lambda x: abs(x - start_pos))
                               end_pos = max(end_pos, closest_pos)
-                      
+
                       if end_pos - start_pos + 1 < min_span_length:
                           min_span = words[start_pos:end_pos + 1]
                           min_span_length = len(min_span)
                           min_span_non_query_count = sum(1 for word in min_span if word not in query_terms)
-              
+
               return min_span_non_query_count
 
           def calculate_gap(document):
               min_span_non_query_count = smallest_span(document)
               words = document.split()
               gap_frequency = words.count(str(min_span_non_query_count))
-              
+
               return (min_span_non_query_count, gap_frequency)
 
           gap1 = calculate_gap(doc1)
           gap2 = calculate_gap(doc2)
-          
+
           print(f"ω(doc1, query) = {gap1}")
           print(f"ω(doc2, query) = {gap2}")
 
     class PROX5:
 
         def explain(query, doc1, doc2):
-        
+
           query_terms = query.split()
 
           def find_positions(term, document):
@@ -245,7 +269,7 @@ class explain_more:
 
             print(f"Query terms present in document 1 but not in document 2 {unique_to_doc1}")
             print(f"Query terms present in document 2 but not in document 1 {unique_to_doc2}")
-    
+
     class STMC1:
 
         def explain(query, document1, document2):
@@ -280,7 +304,7 @@ class explain_more:
             else:
                 print("All query terms are present in document 2")
 
-      class DIV:
+    class DIV:
 
         def explain(query, document1, document2):
 
