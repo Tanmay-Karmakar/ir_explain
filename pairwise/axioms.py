@@ -46,7 +46,7 @@ class pairwise:
 
         if element in ['+', '-']:
             current_op = element
-            current_coeff = 1  
+            current_coeff = 1
         elif '*' in element or '/' in element:
             parts = element.split('*')
             if len(parts) == 2:
@@ -66,7 +66,7 @@ class pairwise:
                         axiom_score = axiom.compare(query, doc1, doc2)
                         apply_operation(axiom_score)
         else:
-            current_coeff = 1  
+            current_coeff = 1
             axiom = self._get_axiom_class(element)
             if axiom:
                 axiom_score = axiom.compare(query, doc1, doc2)
@@ -107,15 +107,15 @@ class pairwise:
   class TFC1:
 
     def compare(self,query, document1, document2):
-        
-        if abs(len(document1) - len(document2)) <= 0.1 * min(len(document1),len(document2)):
+
+        if abs(len(document1) - len(document2)) >= 0.1 * min(len(document1),len(document2)):
             return 0
 
         def term_frequency(term, document):
           return document.split().count(term)
 
         query_terms = query.split()
-    
+
         doc1_tf = sum(term_frequency(term, doc1) for term in query_terms)
         doc2_tf = sum(term_frequency(term, doc2) for term in query_terms)
 
@@ -188,7 +188,7 @@ class pairwise:
       sum_words_between_doc1 = sum(words_between_pairs_doc1.values())
       sum_words_between_doc2 = sum(words_between_pairs_doc2.values())
 
-      total_possible_pairs = len(query_words) * (len(query_words) - 1) // 2 
+      total_possible_pairs = len(query_words) * (len(query_words) - 1) // 2
 
       ratio_doc1 = sum_words_between_doc1 / total_possible_pairs if total_possible_pairs > 0 else 0
       ratio_doc2 = sum_words_between_doc2 / total_possible_pairs if total_possible_pairs > 0 else 0
@@ -251,11 +251,11 @@ class pairwise:
       def smallest_span(document):
           words = document.split()
           term_positions = {term: [] for term in query_terms}
-          
+
           for idx, word in enumerate(words):
               if word in query_terms:
                   term_positions[word].append(idx)
-          
+
           min_span_length = float('inf')
           min_span_non_query_count = float('inf')
           min_span = []
@@ -267,24 +267,24 @@ class pairwise:
                       if other_term != term:
                           closest_pos = min(term_positions[other_term], key=lambda x: abs(x - start_pos))
                           end_pos = max(end_pos, closest_pos)
-                  
+
                   if end_pos - start_pos + 1 < min_span_length:
                       min_span = words[start_pos:end_pos + 1]
                       min_span_length = len(min_span)
                       min_span_non_query_count = sum(1 for word in min_span if word not in query_terms)
-          
+
           return min_span_non_query_count
 
       def calculate_gap(document):
           min_span_non_query_count = smallest_span(document)
           words = document.split()
           gap_frequency = words.count(str(min_span_non_query_count))
-          
+
           return (min_span_non_query_count, gap_frequency)
 
       gap1 = calculate_gap(doc1)
       gap2 = calculate_gap(doc2)
-      
+
       if gap1 < gap2:
           return 1
       elif gap1 > gap2:
@@ -296,7 +296,7 @@ class pairwise:
   class PROX5:
 
     def compare(self,query, doc1, doc2):
-    
+
       query_terms = query.split()
 
       def find_positions(term, document):
@@ -471,7 +471,7 @@ class pairwise:
 
       vectorizer = CountVectorizer()
       term_frequency_matrix = vectorizer.fit_transform(all_texts)
-      
+
       most_similar_term_index = vectorizer.vocabulary_[most_similar_term]
       doc1_term_frequency = term_frequency_matrix[-2, most_similar_term_index]
       doc2_term_frequency = term_frequency_matrix[-1, most_similar_term_index]
