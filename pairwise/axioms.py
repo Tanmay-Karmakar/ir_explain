@@ -7,22 +7,25 @@ class pairwise:
         self.index_path = index_path
 
   def explain(self, query, doc1, doc2, axiom_classes):
-        results = {'Query': query, 'Document 1': doc1[:25], 'Document 2': doc2[:25]}
+        results = {'Query': query, 'Document 1': doc1[:25] + '.....', 'Document 2': doc2[:25] + "....."}
 
         for axiom in axiom_classes:
             if isinstance(axiom, str):
-                combined_score = self.evaluate_axiom_expression(axiom, query, doc1, doc2)
+                axiom_instance = self._get_axiom_class(axiom)
             else:
-                combined_score = axiom.compare(query, doc1, doc2)
+                axiom_instance = axiom
 
-            if combined_score > 0:
-                result = 1
-            elif combined_score < 0:
-                result = -1
-            else:
-                result = 0
+            if axiom_instance:
+                combined_score = axiom_instance.compare(query, doc1, doc2)
 
-            results[axiom] = result
+                if combined_score > 0:
+                    result = 1
+                elif combined_score < 0:
+                    result = -1
+                else:
+                    result = 0
+
+                results[axiom_instance.__class__.__name__] = result
 
         df = pd.DataFrame([results])
         return df
@@ -88,7 +91,7 @@ class pairwise:
   def _get_axiom_class(self, axiom_name):
         axiom_classes_mapping = {
             "TFC1": self.TFC1(),
-            "TFC3": self.TFC3(),
+            "TFC3": self.TFC3(self.index_path),
             "PROX1": self.PROX1(),
             "PROX2": self.PROX2(),
             "PROX3": self.PROX3(),
@@ -96,6 +99,7 @@ class pairwise:
             "PROX5": self.PROX5(),
             "LNC1": self.LNC1(),
             "LNC2": self.LNC2(),
+            "TF_LNC": self.TF_LNC(),
             "LB1": self.LB1(),
             "STMC1": self.STMC1(),
             "AND": self.AND(),
@@ -109,7 +113,7 @@ class pairwise:
     def compare(self,query, document1, document2):
 
         if abs(len(document1) - len(document2)) >= 0.1 * min(len(document1),len(document2)):
-            return 0
+          return 0
 
         def term_frequency(term, document):
           return document.split().count(term)
@@ -121,38 +125,63 @@ class pairwise:
 
         if doc1_tf > doc2_tf:
             return 1
+        elif doc1_tf == doc2_tf:
+            return 0
         else:
             return -1
 
   class TFC3:
 
-    def compare(self,query, document1, document2, term_discrimination_values):
-      query_words = set(query.split())
-      document1_words = set(document1.split())
-      document2_words = set(document2.split())
+        def __init__(self, index_path):
+            self.term_discrimination_values = self.calculate_term_discrimination_values(index_path)
 
-      total_occurrences1 = sum(document1.split().count(term) for term in query_words)
-      total_occurrences2 = sum(document2.split().count(term) for term in query_words)
+        def calculate_term_discrimination_values(self, index_path):
+            term_doc_freq = {}
+            total_docs = 0
 
-      term_discrimination_values = {term: term_discrimination_values.get(term, 1.0) for term in query_words}
+            for filename in os.listdir(index_path):
+                if filename.endswith('.txt'):
+                    total_docs += 1
+                    with open(os.path.join(index_path, filename), 'r') as file:
+                        document = file.read()
+                        terms = set(document.split())
+                        for term in terms:
+                            if term in term_doc_freq:
+                                term_doc_freq[term] += 1
+                            else:
+                                term_doc_freq[term] = 1
 
-      score1 = total_occurrences1 * sum(term_discrimination_values[term] for term in query_words)
-      score2 = total_occurrences2 * sum(term_discrimination_values[term] for term in query_words)
+            term_discrimination_values = {term: 1.0 / freq for term, freq in term_doc_freq.items()}
+            return term_discrimination_values
 
-      if score1 > score2:
-          return 1
-      elif score2 > score1:
-          return -1
-      else:
-          distinct_terms1 = len(document1_words.intersection(query_words))
-          distinct_terms2 = len(document2_words.intersection(query_words))
+        def compare(self, query, document1, document2):
+            query_words = set(query.split())
+            document1_words = set(document1.split())
+            document2_words = set(document2.split())
 
-          if distinct_terms1 > distinct_terms2:
-              return 1
-          elif distinct_terms2 > distinct_terms1:
-              return -1
-          else:
-              return 0
+            total_occurrences1 = sum(document1.split().count(term) for term in query_words)
+            total_occurrences2 = sum(document2.split().count(term) for term in query_words)
+
+            term_discrimination_values = {term: self.term_discrimination_values.get(term, 1.0) for term in query_words}
+
+            score1 = total_occurrences1 * sum(term_discrimination_values[term] for term in query_words)
+            score2 = total_occurrences2 * sum(term_discrimination_values[term] for term in query_words)
+
+            if score1 > score2:
+                return 1
+            elif score2 > score1:
+                return -1
+            else:
+                distinct_terms1 = len(document1_words.intersection(query_words))
+                distinct_terms2 = len(document2_words.intersection(query_words))
+
+                if distinct_terms1 > distinct_terms2:
+                    return 1
+                elif distinct_terms2 > distinct_terms1:
+                    return -1
+                else:
+                    return 0
+
 
   class PROX1:
 
@@ -383,9 +412,9 @@ class pairwise:
       else:
           return 0
 
-    class TF_LNC:
+  class TF_LNC:
 
-      def compare(query, document1, document2):
+      def compare(self,query, document1, document2):
 
           query_words = set(query.split())
           document1_words = set(document1.split())
@@ -434,6 +463,7 @@ class pairwise:
 
   class STMC1:
 
+    
     def compare(self,query, document1, document2):
       similarity_doc1, similarity_doc2 = wordnet_similarity(query, document1, document2)
 
