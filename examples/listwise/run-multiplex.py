@@ -64,7 +64,11 @@ multi.explain(qid, query_str, params)
 multi.generate_candidates(qid, query_str, params)
 
 #multi.generate_doc_pairs(qid, query_str, params)
-
+# show matrix for any simple explainer. For that, you need to change the parameters to one of the following:
+# 1. language_model 
+# 2. saliency
+# 3. semantic
+params["EXP_model"] = "language_model"
 multi.show_matrix(qid, query_str, params)
 
 
