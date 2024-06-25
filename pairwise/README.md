@@ -7,6 +7,8 @@ This repository contains resources for determining pairwise scores between two d
 The available axioms are:
 - TFC1
 - TFC3
+- TDC
+- M-TDC
 - PROX1
 - PROX2
 - PROX3
@@ -14,8 +16,10 @@ The available axioms are:
 - PROX5
 - LNC1
 - LNC2
+- TF_LNC
 - LB1
 - STMC1
+- STMC2
 - AND
 - REG
 - DIV
@@ -36,17 +40,13 @@ pairwise = pairwise(query, doc1, doc2, index_path)
 Create a list of axiom classes that you want to use:
 
 ```python
-axiom_classes = [TFC1.(), STMC1.(), ...]
-```
-or by passing them as strings -
-
-```python
-axiom_classes = ["TFC1", "STMC1", ...]
+from axioms import TFC1, STMC1, ...
+axiom_classes = [TFC1(), STMC1(), ...]
 ```
 
 You can also define abstract classes using binary (+, -, *, /) and unary (-) operators on the axioms. For example:
 ```python
-axiom_classes = ["TFC1+TF_LNC/PROX1"]
+axiom_classes = [TFC1() + TF_LNC() - STMC1()]
 ```
 ### Explaining Axiom Results
 
