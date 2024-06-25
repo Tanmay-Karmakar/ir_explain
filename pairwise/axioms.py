@@ -3,6 +3,75 @@ import os
 from utils import *
 from explain_more import explain_more
 
+class Axiom:
+    def compare(self, query, document1, document2):
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def __add__(self, other):
+        return CombinedAxiom(self, other, '+')
+
+    def __sub__(self, other):
+        return CombinedAxiom(self, other, '-')
+
+    def __mul__(self, coeff):
+        return ScaledAxiom(self, coeff)
+
+    def __rmul__(self, coeff):
+        return self.__mul__(coeff)
+
+    def __and__(self, other):
+        return CombinedAxiom(self, other, '&')
+
+    def __mod__(self, other):
+        return MajorityAxiom(self, other)
+
+
+class CombinedAxiom(Axiom):
+    def __init__(self, axiom1, axiom2, operation):
+        self.axiom1 = axiom1
+        self.axiom2 = axiom2
+        self.operation = operation
+
+    def compare(self, query, document1, document2):
+        score1 = self.axiom1.compare(query, document1, document2)
+        score2 = self.axiom2.compare(query, document1, document2)
+
+        if self.operation == '+':
+            return score1 + score2
+        elif self.operation == '-':
+            return score1 - score2
+        elif self.operation == '&':
+            # Return 1 if both are 1, else 0
+            return 1 if score1 == 1 and score2 == 1 else 0
+
+class ScaledAxiom(Axiom):
+    def __init__(self, axiom, coeff):
+        self.axiom = axiom
+        self.coeff = coeff
+
+    def compare(self, query, document1, document2):
+        return self.coeff * self.axiom.compare(query, document1, document2)
+
+class MajorityAxiom(Axiom):
+    def __init__(self, axiom1, axiom2):
+        self.axiom1 = axiom1
+        self.axiom2 = axiom2
+
+    def compare(self, query, document1, document2):
+        score1 = self.axiom1.compare(query, document1, document2)
+        score2 = self.axiom2.compare(query, document1, document2)
+
+        # Return the result agreed by the majority of axioms
+        if score1 == 1 and score2 == 1:
+            return 1
+        elif score1 == -1 and score2 == -1:
+            return -1
+        else:
+            return 0
+
+
+
+
 class pairwise:
 
   def __init__(self, query, doc1, doc2, index_path):
@@ -12,77 +81,22 @@ class pairwise:
         self.index_path = index_path
 
   def explain(self, query, doc1, doc2, axiom_classes):
-        results = {'Query': query, 'Document 1': doc1[:25] + '...', 'Document 2': doc2[:25] + "..."}
+        results = {'Query': query, 'Document 1': doc1[:25] + '...', 'Document 2': doc2[:25] + '...'}
 
         for axiom in axiom_classes:
-            if isinstance(axiom, str):
-                axiom_instance = self._get_axiom_class(axiom)
+            combined_score = axiom.compare(query, doc1, doc2)
+
+            if combined_score > 0:
+                result = 1
+            elif combined_score < 0:
+                result = -1
             else:
-                axiom_instance = axiom
+                result = 0
 
-            if axiom_instance:
-                combined_score = axiom_instance.compare(query, doc1, doc2)
-
-                if combined_score > 0:
-                    result = 1
-                elif combined_score < 0:
-                    result = -1
-                else:
-                    result = 0
-
-                results[axiom_instance.__class__.__name__] = result
+            results[axiom.__class__.__name__] = result
 
         df = pd.DataFrame([results])
         return df
-
-  def evaluate_axiom_expression(self, expression, query, doc1, doc2):
-    elements = expression.split()
-    score = 0
-    current_op = '+'
-    current_coeff = 1
-
-    def apply_operation(axiom_score):
-        nonlocal score
-        if current_op == '+':
-            score += current_coeff * axiom_score
-        elif current_op == '-':
-            score -= current_coeff * axiom_score
-
-    i = 0
-    while i < len(elements):
-        element = elements[i]
-
-        if element in ['+', '-']:
-            current_op = element
-            current_coeff = 1
-        elif '*' in element or '/' in element:
-            parts = element.split('*')
-            if len(parts) == 2:
-                coeff, axiom_name = parts
-                current_coeff = int(coeff)
-                axiom = self._get_axiom_class(axiom_name)
-                if axiom:
-                    axiom_score = axiom.compare(query, doc1, doc2)
-                    apply_operation(axiom_score)
-            else:
-                parts = element.split('/')
-                if len(parts) == 2:
-                    coeff, axiom_name = parts
-                    current_coeff = 1 / int(coeff)
-                    axiom = self._get_axiom_class(axiom_name)
-                    if axiom:
-                        axiom_score = axiom.compare(query, doc1, doc2)
-                        apply_operation(axiom_score)
-        else:
-            current_coeff = 1
-            axiom = self._get_axiom_class(element)
-            if axiom:
-                axiom_score = axiom.compare(query, doc1, doc2)
-                apply_operation(axiom_score)
-
-        i += 1
-
-    return score
 
   def explain_details(self, query, doc1, doc2, axiom_name):
         self.index_path
@@ -117,7 +131,7 @@ class pairwise:
         }
         return axiom_classes_mapping.get(axiom_name)
 
-  class TFC1:
+  class TFC1(Axiom):
 
     def compare(self,query, document1, document2):
 
@@ -139,7 +153,7 @@ class pairwise:
         else:
             return -1
 
-  class TFC3:
+  class TFC3(Axiom):
 
         def __init__(self, index_path):
             self.term_discrimination_values = self.calculate_term_discrimination_values(index_path)
@@ -196,7 +210,7 @@ class pairwise:
                 return 0
 
 
-  class TDC:
+  class TDC(Axiom):
 
     def __init__(self, index_path):
         self.term_discrimination_values = self.calculate_term_discrimination_values(index_path)
@@ -243,7 +257,7 @@ class pairwise:
         else:
             return 0
             
-  class M_TDC:
+  class M_TDC(Axiom):
 
     def __init__(self, index_path):
         self.term_discrimination_values = self.calculate_term_discrimination_values(index_path)
@@ -292,7 +306,7 @@ class pairwise:
         else:
             return 0
             
-  class PROX1:
+  class PROX1(Axiom):
 
     def compare(self,query, document1, document2):
       query_words = query.split()
@@ -338,7 +352,7 @@ class pairwise:
       else:
           return 0
 
-  class PROX2:
+  class PROX2(Axiom):
 
     def compare(self,query, document1, document2):
       query_words = query.split()
@@ -361,7 +375,7 @@ class pairwise:
       else:
         return 0
 
-  class PROX3:
+  class PROX3(Axiom):
 
     def compare(self,query, document1, document2):
       if query in document1 and query in document2:
@@ -381,7 +395,7 @@ class pairwise:
       else:
           return 0
 
-  class PROX4:
+  class PROX4(Axiom):
 
     def compare(self, query, doc1, doc2):
         query_terms = set(query.split())
@@ -437,7 +451,7 @@ class pairwise:
 
 
 
-  class PROX5:
+  class PROX5(Axiom):
 
     def compare(self,query, doc1, doc2):
 
@@ -489,7 +503,7 @@ class pairwise:
           return 0
 
 
-  class LNC1:
+  class LNC1(Axiom):
 
     def compare(self,query, doc1, doc2):
 
@@ -509,7 +523,7 @@ class pairwise:
           else:
               return -1
 
-  class LNC2:
+  class LNC2(Axiom):
 
     def compare(self,query, doc1, doc2):
       original_doc, copied_doc = (doc1, doc2) if len(doc1) <= len(doc2) else (doc2, doc1)
@@ -527,7 +541,7 @@ class pairwise:
       else:
           return 0
 
-  class TF_LNC:
+  class TF_LNC(Axiom):
 
       def compare(self,query, document1, document2):
 
@@ -560,7 +574,7 @@ class pairwise:
               if doc1_tf == doc1_tf:
                 return 0
 
-  class LB1:
+  class LB1(Axiom):
 
     def compare(self,query, document1, document2):
       query_terms = set(query.lower().split())
@@ -576,7 +590,7 @@ class pairwise:
         return 1
       return -1
 
-  class STMC1:
+  class STMC1(Axiom):
 
     
     def compare(self,query, document1, document2):
@@ -589,7 +603,7 @@ class pairwise:
       else:
           return 0
   
-  class STMC2:
+  class STMC2(Axiom):
 
     def compare(self, query, document1, document2):
         query_terms = set(query.split())
@@ -648,7 +662,7 @@ class pairwise:
             return -1
 
 
-  class AND:
+  class AND(Axiom):
 
     def compare(self,query, document1, document2):
       query_terms = set(query.lower().split())
@@ -662,7 +676,7 @@ class pairwise:
       else:
           return 0
 
-  class REG:
+  class REG(Axiom):
 
     def compare(self,query, document1, document2):
       query_terms = query.lower().split()
@@ -687,7 +701,7 @@ class pairwise:
       else:
           return 0
 
-  class DIV:
+  class DIV(Axiom):
 
     def compare(self,query, document1, document2):
       query_terms = set(query.lower().split())
@@ -702,3 +716,22 @@ class pairwise:
       else:
           return -1
       return 0
+      
+TFC1 = pairwise.TFC1
+TFC3 = pairwise.TFC3
+TDC = pairwise.TDC
+M_TDC = pairwise.M_TDC
+PROX1 = pairwise.PROX1
+PROX2 = pairwise.PROX2
+PROX3 = pairwise.PROX3
+PROX4 = pairwise.PROX4
+PROX5 = pairwise.PROX5
+LNC1 = pairwise.LNC1
+LNC2 = pairwise.LNC2
+TF_LNC = pairwise.TF_LNC
+LB1 = pairwise.LB1
+STMC1 = pairwise.STMC1
+STMC2 = pairwise.STMC2
+AND = pairwise.AND
+REG = pairwise.REG
+DIV = pairwise.DIV
